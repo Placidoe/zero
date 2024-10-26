@@ -1,4 +1,8 @@
 spring:
+  elasticsearch:
+    uris: 192.168.253.144:9200 # Elasticsearch服务器地址
+#    username: elastic # 如果有认证，填写用户名
+#    password: your_password # 如果有认证，填写密码
   datasource:
     url: jdbc:mysql://192.168.253.144:13306/DB3121002802?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
