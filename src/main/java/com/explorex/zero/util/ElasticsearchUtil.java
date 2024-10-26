@@ -1,5 +1,6 @@
 package com.explorex.zero.util;
 
+import com.explorex.zero.task.FuzzyQueryTask;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilde
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 @Component
@@ -68,6 +70,7 @@ public class ElasticsearchUtil {
 
     /**
      * 根据多个字符串进行模糊查询
+     * 使用 Fork/Join 优化，确保每个子任务处理的 values 大小不超过 100
      *
      * @param indexName 索引名称
      * @param field     字段名
@@ -78,18 +81,18 @@ public class ElasticsearchUtil {
      * @return 查询结果
      */
     public <T> List<T> fuzzySearchMultipleValues(String indexName, String field, List<String> values, Pageable pageable, Class<T> clazz) {
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        // 使用 Fork/Join 框架执行查询
 
-        for (String value : values) {
-            boolQuery.should(QueryBuilders.fuzzyQuery(field, value));
-        }
+        // 使用 Runtime 类
+        int availableProcessors = Runtime.getRuntime().availableProcessors()-1;
+        int threshold = values.size() / availableProcessors;
 
-        NativeSearchQueryBuilder queryBuilder = new NativeSearchQueryBuilder()
-                .withQuery(boolQuery)
-                .withPageable(pageable);
+        ForkJoinPool forkJoinPool = new ForkJoinPool();
+        FuzzyQueryTask<T> task = new FuzzyQueryTask<>(elasticsearchRestTemplate, indexName, field, values, clazz, threshold);
+        List<SearchHit<T>> searchHits = forkJoinPool.invoke(task);
 
-        SearchHits<T> searchHits = elasticsearchRestTemplate.search(queryBuilder.build(), clazz, IndexCoordinates.of(indexName));
-        return searchHits.getSearchHits().stream()
+        // 将搜索结果转换为文档列表
+        return searchHits.stream()
                 .map(SearchHit::getContent)
                 .collect(Collectors.toList());
     }
