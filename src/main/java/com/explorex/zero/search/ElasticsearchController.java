@@ -1,4 +1,4 @@
-package com.explorex.zero.api;
+package com.explorex.zero.search;
 
 import com.explorex.zero.common.entity.MyDocument;
 import com.explorex.zero.util.ElasticsearchUtil;
